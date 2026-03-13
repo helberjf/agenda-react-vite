@@ -122,6 +122,21 @@ firebase emulators:start
 VITE_USE_EMULATORS=true npm run dev
 ```
 
+### 5. Deploy no Vercel
+
+1. Conecte o repositório ao Vercel
+2. Configure as variáveis de ambiente (Environment Variables):
+   - `VITE_FIREBASE_API_KEY`
+   - `VITE_FIREBASE_AUTH_DOMAIN`
+   - `VITE_FIREBASE_DATABASE_URL`
+   - `VITE_FIREBASE_PROJECT_ID`
+   - `VITE_FIREBASE_STORAGE_BUCKET`
+   - `VITE_FIREBASE_MESSAGING_SENDER_ID`
+   - `VITE_FIREBASE_APP_ID`
+3. O build usa `npm run build` e a saída é `dist/`
+4. **Importante:** No Firebase Console → Authentication → Settings → Authorized domains, adicione o domínio do Vercel (ex: `seu-projeto.vercel.app`)
+5. **Cloud Functions:** Faça deploy separado com `firebase deploy --only functions` (hospedagem no Firebase, não no Vercel)
+
 ## Integração com iPhone Calendar
 
 ### MVP: Exportação .ics
