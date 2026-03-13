@@ -18,6 +18,7 @@ import { Week } from "@/pages/Week";
 import { CalendarPage } from "@/pages/CalendarPage";
 import { History } from "@/pages/History";
 import { Settings } from "@/pages/Settings";
+import { Categories } from "@/pages/Categories";
 import { Login } from "@/pages/auth/Login";
 import { Register } from "@/pages/auth/Register";
 
@@ -67,6 +68,7 @@ export function AppRouter() {
         <Route path="calendar" element={<CalendarPage />} />
         <Route path="history" element={<History />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="categories" element={<Categories />} />
       </Route>
 
       {/* Fallback */}

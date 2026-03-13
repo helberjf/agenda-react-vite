@@ -1,6 +1,8 @@
-import { CheckCircle2, Circle, Trash2, AlertCircle } from "lucide-react";
+import { CheckCircle2, Circle, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useCompleteTask, useUncompleteTask, useDeleteTask } from "@/hooks/useTasks";
+import { useCategories } from "@/hooks/useCategories";
+import { CategoryBadge } from "@/components/shared/CategoryBadge";
 import type { Task } from "@/types";
 
 const PRIORITY_CONFIG = {
@@ -12,52 +14,45 @@ const PRIORITY_CONFIG = {
 
 interface TaskCardProps {
   task: Task;
-  showDate?: boolean;
 }
 
-export function TaskCard({ task, showDate }: TaskCardProps) {
+export function TaskCard({ task }: TaskCardProps) {
   const complete = useCompleteTask();
   const uncomplete = useUncompleteTask();
   const del = useDeleteTask();
+  const { categories } = useCategories();
 
   const isDone = task.status === "done";
   const priority = PRIORITY_CONFIG[task.priority];
+  const category = categories.find((c) => c.id === task.categoryId);
 
   function toggleComplete() {
-    if (isDone) {
-      uncomplete.mutate(task.id);
-    } else {
-      complete.mutate(task.id);
-    }
+    if (isDone) uncomplete.mutate(task.id);
+    else complete.mutate(task.id);
   }
 
   return (
-    <div
-      className={cn(
-        "group flex items-start gap-3 px-4 py-3 rounded-lg border border-border bg-card",
-        "hover:border-border/80 transition-all",
-        isDone && "opacity-60"
-      )}
-    >
+    <div className={cn(
+      "group flex items-start gap-3 px-4 py-3 rounded-lg border border-border bg-card",
+      "hover:border-border/80 transition-all",
+      isDone && "opacity-60"
+    )}>
       <button
         onClick={toggleComplete}
         className="mt-0.5 shrink-0 text-muted-foreground hover:text-primary transition-colors"
         disabled={complete.isPending || uncomplete.isPending}
       >
-        {isDone ? (
-          <CheckCircle2 className="h-4 w-4 text-primary" />
-        ) : (
-          <Circle className="h-4 w-4" />
-        )}
+        {isDone
+          ? <CheckCircle2 className="h-4 w-4 text-primary" />
+          : <Circle className="h-4 w-4" />
+        }
       </button>
 
       <div className="flex-1 min-w-0">
-        <p
-          className={cn(
-            "text-sm font-medium text-foreground leading-snug",
-            isDone && "line-through text-muted-foreground"
-          )}
-        >
+        <p className={cn(
+          "text-sm font-medium text-foreground leading-snug",
+          isDone && "line-through text-muted-foreground"
+        )}>
           {task.title}
         </p>
 
@@ -67,14 +62,12 @@ export function TaskCard({ task, showDate }: TaskCardProps) {
           </p>
         )}
 
-        <div className="mt-1 flex items-center gap-2">
+        <div className="mt-1.5 flex items-center gap-2 flex-wrap">
           <span className={cn("flex items-center gap-1 text-xs", priority.className)}>
             <span className={cn("h-1.5 w-1.5 rounded-full", priority.dot)} />
             {priority.label}
           </span>
-          {task.isDaily && task.isWeekly && (
-            <span className="text-xs text-muted-foreground">diária · semanal</span>
-          )}
+          {category && <CategoryBadge category={category} />}
         </div>
       </div>
 
@@ -82,7 +75,6 @@ export function TaskCard({ task, showDate }: TaskCardProps) {
         onClick={() => del.mutate(task)}
         className="opacity-0 group-hover:opacity-100 mt-0.5 p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
         disabled={del.isPending}
-        title="Excluir tarefa"
       >
         <Trash2 className="h-3.5 w-3.5" />
       </button>

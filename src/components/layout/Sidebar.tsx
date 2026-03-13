@@ -1,7 +1,7 @@
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard, Sun, CalendarDays, Calendar, History,
-  Settings, ChevronRight, Plus, LogOut,
+  Settings, ChevronRight, Plus, LogOut, Tag,
 } from "lucide-react";
 import { mainNav, type NavItem } from "@/config/sidebar.config";
 import { useUIStore } from "@/store/ui.store";
@@ -15,6 +15,7 @@ const ICON_MAP: Record<string, React.FC<{ className?: string }>> = {
   "calendar": Calendar,
   "history": History,
   "settings": Settings,
+  "tag": Tag,
 };
 
 function NavItemLink({ item }: { item: Extract<NavItem, { type?: "item" }> }) {

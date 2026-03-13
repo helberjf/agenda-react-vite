@@ -1,10 +1,3 @@
-/**
- * config/sidebar.config.ts
- *
- * Configuração declarativa da sidebar — mesmo padrão do projeto de referência.
- * Evita lógica de navegação espalhada por componentes.
- */
-
 export type NavItem =
   | { type?: "item"; label: string; href: string; icon: string; badge?: string }
   | { type: "divider" }
@@ -18,5 +11,6 @@ export const mainNav: NavItem[] = [
   { type: "divider" },
   { label: "Histórico", href: "/history", icon: "history" },
   { type: "divider" },
+  { label: "Categorias", href: "/categories", icon: "tag" },
   { label: "Configurações", href: "/settings", icon: "settings" },
 ];

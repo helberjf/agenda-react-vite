@@ -1,8 +1,5 @@
 /**
- * pages/Today.tsx
- *
- * Foco total no dia: tarefas, log e progresso.
- * Baixa fricção — campo de log sempre visível.
+ * pages/Today.tsx — com abas de categoria
  */
 
 import { useState } from "react";
@@ -11,14 +8,16 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckCircle2, Circle, Plus, Smile } from "lucide-react";
 import { useTodayTasks, useCreateTask } from "@/hooks/useTasks";
 import { useDailyLog, useUpsertDailyLog } from "@/hooks/useDailyLog";
+import { useCategories } from "@/hooks/useCategories";
 import { TaskCard } from "@/components/tasks/TaskCard";
-import { EmptyState } from "@/components/shared/EmptyState";
+import { CategoryTabs } from "@/components/shared/CategoryTabs";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { formatDateBR, toDateKey, toWeekKey } from "@/lib/utils/date";
 import { dailyLogSchema, type DailyLogInput } from "@/lib/validators/auth";
 import { createTaskSchema, type CreateTaskInput } from "@/lib/validators/task";
 import { cn } from "@/lib/utils/cn";
 import { toast } from "sonner";
+import type { Task } from "@/types";
 
 const MOODS = [
   { value: "great", emoji: "😄", label: "Ótimo" },
@@ -28,9 +27,13 @@ const MOODS = [
   { value: "terrible", emoji: "😞", label: "Péssimo" },
 ] as const;
 
+// ─── Quick add ────────────────────────────────────────────────────────────────
+
 function QuickAddTask({ date, weekKey }: { date: string; weekKey: string }) {
   const [open, setOpen] = useState(false);
   const createTask = useCreateTask();
+  const { categories } = useCategories();
+
   const { register, handleSubmit, reset, formState: { errors } } = useForm<CreateTaskInput>({
     resolver: zodResolver(createTaskSchema),
     defaultValues: { priority: "medium", isDaily: true, isWeekly: false, date, weekKey },
@@ -42,8 +45,8 @@ function QuickAddTask({ date, weekKey }: { date: string; weekKey: string }) {
       toast.success("Tarefa criada");
       reset({ priority: "medium", isDaily: true, isWeekly: false, date, weekKey });
       setOpen(false);
-    } catch {
-      toast.error("Erro ao criar tarefa");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao criar tarefa");
     }
   }
 
@@ -69,10 +72,10 @@ function QuickAddTask({ date, weekKey }: { date: string; weekKey: string }) {
       />
       {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
 
-      <div className="flex items-center gap-2">
+      <div className="flex gap-2 flex-wrap">
         <select
           {...register("priority")}
-          className="flex-1 bg-background border border-border rounded-lg px-2 py-1.5 text-xs focus:outline-none"
+          className="bg-background border border-border rounded-lg px-2 py-1.5 text-xs focus:outline-none"
         >
           <option value="low">Baixa</option>
           <option value="medium">Média</option>
@@ -80,12 +83,22 @@ function QuickAddTask({ date, weekKey }: { date: string; weekKey: string }) {
           <option value="urgent">Urgente</option>
         </select>
 
+        <select
+          {...register("categoryId")}
+          className="flex-1 bg-background border border-border rounded-lg px-2 py-1.5 text-xs focus:outline-none"
+        >
+          <option value="">Sem categoria</option>
+          {categories.map((cat) => (
+            <option key={cat.id} value={cat.id}>{cat.name}</option>
+          ))}
+        </select>
+
         <button
           type="submit"
           disabled={createTask.isPending}
           className="px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
-          Salvar
+          {createTask.isPending ? "..." : "Salvar"}
         </button>
         <button
           type="button"
@@ -99,12 +112,14 @@ function QuickAddTask({ date, weekKey }: { date: string; weekKey: string }) {
   );
 }
 
+// ─── Log do dia ───────────────────────────────────────────────────────────────
+
 function DailyLogSection({ dateKey, date }: { dateKey: string; date: Date }) {
   const { log, loading } = useDailyLog(date);
   const upsert = useUpsertDailyLog();
   const [selectedMood, setSelectedMood] = useState<DailyLogInput["mood"]>(undefined);
 
-  const { register, handleSubmit, formState: { errors, isDirty } } = useForm<DailyLogInput>({
+  const { register, handleSubmit, formState: { errors } } = useForm<DailyLogInput>({
     resolver: zodResolver(dailyLogSchema),
     values: { content: log?.content ?? "", mood: log?.mood },
   });
@@ -128,8 +143,7 @@ function DailyLogSection({ dateKey, date }: { dateKey: string; date: Date }) {
         rows={6}
         className={cn(
           "w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm",
-          "placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/50",
-          "resize-none leading-relaxed",
+          "placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none leading-relaxed",
           errors.content && "border-destructive"
         )}
       />
@@ -146,9 +160,7 @@ function DailyLogSection({ dateKey, date }: { dateKey: string; date: Date }) {
               title={mood.label}
               className={cn(
                 "text-lg p-1 rounded-lg transition-all",
-                selectedMood === mood.value
-                  ? "bg-primary/10 scale-110"
-                  : "opacity-50 hover:opacity-100"
+                selectedMood === mood.value ? "bg-primary/10 scale-110" : "opacity-50 hover:opacity-100"
               )}
             >
               {mood.emoji}
@@ -159,7 +171,7 @@ function DailyLogSection({ dateKey, date }: { dateKey: string; date: Date }) {
         <button
           type="submit"
           disabled={upsert.isPending}
-          className="px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+          className="px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
           {upsert.isPending ? "Salvando..." : log ? "Atualizar" : "Salvar registro"}
         </button>
@@ -168,16 +180,33 @@ function DailyLogSection({ dateKey, date }: { dateKey: string; date: Date }) {
   );
 }
 
+// ─── Página principal ─────────────────────────────────────────────────────────
+
 export function Today() {
   const today = new Date();
   const dateKey = toDateKey(today);
   const weekKey = toWeekKey(today);
 
   const { tasks, loading } = useTodayTasks(today);
+  const { categories } = useCategories();
+  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
 
-  const doneTasks = tasks.filter((t) => t.status === "done");
-  const pendingTasks = tasks.filter((t) => t.status !== "done");
-  const progress = tasks.length > 0 ? Math.round((doneTasks.length / tasks.length) * 100) : 0;
+  // Filtra por categoria selecionada
+  const filtered = activeCategoryId
+    ? tasks.filter((t) => t.categoryId === activeCategoryId)
+    : tasks;
+
+  const doneTasks = filtered.filter((t) => t.status === "done");
+  const pendingTasks = filtered.filter((t) => t.status !== "done");
+
+  const allDone = tasks.filter((t) => t.status === "done").length;
+  const progress = tasks.length > 0 ? Math.round((allDone / tasks.length) * 100) : 0;
+
+  // Contagem por categoria para mostrar nos badges das abas
+  const counts: Record<string, number> = {};
+  categories.forEach((cat) => {
+    counts[cat.id] = tasks.filter((t) => t.categoryId === cat.id).length;
+  });
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -187,12 +216,12 @@ export function Today() {
         <p className="text-sm text-muted-foreground mt-0.5">{formatDateBR(today)}</p>
       </div>
 
-      {/* Progresso */}
+      {/* Barra de progresso */}
       {tasks.length > 0 && (
         <div className="bg-card border border-border rounded-xl p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-medium text-foreground">
-              {doneTasks.length} de {tasks.length} concluídas
+              {allDone} de {tasks.length} concluídas
             </span>
             <span className="text-xs text-muted-foreground">{progress}%</span>
           </div>
@@ -203,6 +232,16 @@ export function Today() {
             />
           </div>
         </div>
+      )}
+
+      {/* Abas de categoria */}
+      {categories.length > 0 && (
+        <CategoryTabs
+          categories={categories}
+          activeId={activeCategoryId}
+          onChange={setActiveCategoryId}
+          counts={counts}
+        />
       )}
 
       {/* Tarefas pendentes */}
@@ -216,7 +255,7 @@ export function Today() {
           <LoadingSpinner />
         ) : (
           <div className="space-y-2">
-            {pendingTasks.map((task) => (
+            {pendingTasks.map((task: Task) => (
               <TaskCard key={task.id} task={task} />
             ))}
             <QuickAddTask date={dateKey} weekKey={weekKey} />
@@ -232,14 +271,13 @@ export function Today() {
             Concluídas ({doneTasks.length})
           </h2>
           <div className="space-y-2">
-            {doneTasks.map((task) => (
+            {doneTasks.map((task: Task) => (
               <TaskCard key={task.id} task={task} />
             ))}
           </div>
         </section>
       )}
 
-      {/* Divider */}
       <div className="border-t border-border" />
 
       {/* Log do dia */}

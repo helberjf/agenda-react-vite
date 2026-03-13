@@ -1,71 +1,54 @@
 /**
  * services/tasks.service.ts
- *
- * ESCRITAS: via Cloud Functions (servidor valida token e dados)
- * LEITURAS: direto no Realtime Database (protegidas por Security Rules)
+ * ESCRITAS → API backend (Node/Vercel)
+ * LEITURAS → Firebase Realtime Database direto (listeners em tempo real)
  */
 
-import { ref, get, onValue, update } from "firebase/database";
+import { ref, get, onValue } from "firebase/database";
 import { database } from "@/lib/firebase";
-import {
-  fnCreateTask,
-  fnUpdateTask,
-  fnCompleteTask,
-  fnUncompleteTask,
-  fnDeleteTask,
-} from "@/lib/functions";
+import { api } from "@/lib/api";
 import type { Task } from "@/types";
 import type { CreateTaskInput, UpdateTaskInput } from "@/lib/validators/task";
 
 const taskRef = (uid: string, taskId: string) =>
   ref(database, `tasks/${uid}/${taskId}`);
 
-// ─── Escritas via Cloud Functions ─────────────────────────────────────────────
+// ─── Escritas via API ─────────────────────────────────────────────────────────
 
-export async function createTask(uid: string, input: CreateTaskInput): Promise<Task> {
-  const result = await fnCreateTask({ ...input, uid });
-  return result.data.task as Task;
+export async function createTask(_uid: string, input: CreateTaskInput): Promise<Task> {
+  const { task } = await api.post<{ task: Task }>("/tasks", input);
+  return task;
 }
 
 export async function updateTask(
-  uid: string,
+  _uid: string,
   taskId: string,
   input: UpdateTaskInput,
-  _previousTask: Task
+  _prev: Task
 ): Promise<void> {
-  await fnUpdateTask({ taskId, uid, ...input });
+  await api.patch(`/tasks/${taskId}`, input);
 }
 
-export async function completeTask(uid: string, taskId: string): Promise<void> {
-  await fnCompleteTask({ taskId, uid });
+export async function completeTask(_uid: string, taskId: string): Promise<void> {
+  await api.patch(`/tasks/${taskId}`, { action: "complete" });
 }
 
-export async function uncompleteTask(uid: string, taskId: string): Promise<void> {
-  await fnUncompleteTask({ taskId, uid });
+export async function uncompleteTask(_uid: string, taskId: string): Promise<void> {
+  await api.patch(`/tasks/${taskId}`, { action: "uncomplete" });
 }
 
-export async function deleteTask(uid: string, task: Task): Promise<void> {
-  await fnDeleteTask({ taskId: task.id, uid });
+export async function deleteTask(_uid: string, task: Task): Promise<void> {
+  await api.delete(`/tasks/${task.id}`);
 }
 
-// ─── Leituras diretas no DB ───────────────────────────────────────────────────
+// ─── Leituras pontuais (Histórico) ───────────────────────────────────────────
 
 export async function getTasksByDate(uid: string, dateKey: string): Promise<Task[]> {
   const indexSnap = await get(ref(database, `dailyTasks/${uid}/${dateKey}`));
   if (!indexSnap.exists()) return [];
-
   const ids = Object.keys(indexSnap.val() as Record<string, boolean>);
-  const taskSnaps = await Promise.all(ids.map((id) => get(taskRef(uid, id))));
-  return taskSnaps.filter((s) => s.exists()).map((s) => s.val() as Task);
-}
-
-export async function getTasksByWeek(uid: string, weekKey: string): Promise<Task[]> {
-  const indexSnap = await get(ref(database, `weeklyTasks/${uid}/${weekKey}`));
-  if (!indexSnap.exists()) return [];
-
-  const ids = Object.keys(indexSnap.val() as Record<string, boolean>);
-  const taskSnaps = await Promise.all(ids.map((id) => get(taskRef(uid, id))));
-  return taskSnaps.filter((s) => s.exists()).map((s) => s.val() as Task);
+  const snaps = await Promise.all(ids.map((id) => get(taskRef(uid, id))));
+  return snaps.filter((s) => s.exists()).map((s) => s.val() as Task);
 }
 
 // ─── Listeners em tempo real ──────────────────────────────────────────────────
@@ -75,13 +58,10 @@ export function subscribeTodayTasks(
   dateKey: string,
   callback: (tasks: Task[]) => void
 ): () => void {
-  const indexPath = ref(database, `dailyTasks/${uid}/${dateKey}`);
-
   const unsubscribe = onValue(
-    indexPath,
+    ref(database, `dailyTasks/${uid}/${dateKey}`),
     (snap) => {
       if (!snap.exists()) { callback([]); return; }
-
       const ids = Object.keys(snap.val() as Record<string, boolean>);
       Promise.all(ids.map((id) => get(taskRef(uid, id))))
         .then((snaps) => {
@@ -100,7 +80,6 @@ export function subscribeTodayTasks(
     },
     () => callback([])
   );
-
   return unsubscribe;
 }
 
@@ -109,22 +88,16 @@ export function subscribeWeeklyTasks(
   weekKey: string,
   callback: (tasks: Task[]) => void
 ): () => void {
-  const indexPath = ref(database, `weeklyTasks/${uid}/${weekKey}`);
-
   const unsubscribe = onValue(
-    indexPath,
+    ref(database, `weeklyTasks/${uid}/${weekKey}`),
     (snap) => {
       if (!snap.exists()) { callback([]); return; }
-
       const ids = Object.keys(snap.val() as Record<string, boolean>);
       Promise.all(ids.map((id) => get(taskRef(uid, id))))
-        .then((snaps) => {
-          callback(snaps.filter((s) => s.exists()).map((s) => s.val() as Task));
-        })
+        .then((snaps) => callback(snaps.filter((s) => s.exists()).map((s) => s.val() as Task)))
         .catch(() => callback([]));
     },
     () => callback([])
   );
-
   return unsubscribe;
 }
