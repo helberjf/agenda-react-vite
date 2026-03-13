@@ -12,11 +12,11 @@
  *    FIREBASE_DATABASE_URL = https://seu-projeto-default-rtdb.firebaseio.com
  */
 
-import * as admin from "firebase-admin";
+import { cert, getApps, initializeApp, type App } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+import { getDatabase } from "firebase-admin/database";
 
-function initAdmin(): admin.app.App {
-  if (admin.apps.length > 0) return admin.apps[0]!;
-
+function initAdmin(): App {
   const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT;
   const databaseURL = process.env.FIREBASE_DATABASE_URL;
 
@@ -26,13 +26,16 @@ function initAdmin(): admin.app.App {
     );
   }
 
-  return admin.initializeApp({
-    credential: admin.credential.cert(JSON.parse(serviceAccount)),
+  const apps = getApps();
+  if (apps.length > 0) return apps[0]!;
+
+  return initializeApp({
+    credential: cert(JSON.parse(serviceAccount)),
     databaseURL,
   });
 }
 
-initAdmin();
+const app = initAdmin();
 
-export const db = admin.database();
-export const adminAuth = admin.auth();
+export const db = getDatabase(app);
+export const adminAuth = getAuth(app);
