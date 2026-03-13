@@ -1,0 +1,35 @@
+# Dependências
+node_modules/
+
+# Build e cache
+dist/
+.build/
+.cache/
+*.local
+
+# Logs e temp
+.logs/
+.temp/
+.backup/
+
+# Ambiente (nunca commitar!)
+.env
+.env.local
+.env.*.local
+
+# Lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+bun.lockb
+
+# Firebase
+.firebase/
+
+# Arquivos temporários
+temp-*.txt
+temp-*.json
+temp-*.yaml
+temp-*.yml
+temp-*.xml
+temp-*.csv
