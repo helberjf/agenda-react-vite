@@ -7,7 +7,7 @@
  */
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { adminAuth } from "./admin";
+import { adminAuth } from "./admin.js";
 import type * as admin from "firebase-admin";
 
 export interface AuthUser {
@@ -44,7 +44,7 @@ export async function verifyToken(req: VercelRequest): Promise<AuthUser> {
  *   export default withAuth(async (req, res, user) => { ... });
  */
 export function withAuth(
-  handler: (req: VercelRequest, res: VercelResponse, user: AuthUser) => Promise<void>
+  handler: (req: VercelRequest, res: VercelResponse, user: AuthUser) => Promise<unknown> | unknown
 ) {
   return async (req: VercelRequest, res: VercelResponse) => {
     // CORS — permite chamadas do frontend na Vercel e localhost

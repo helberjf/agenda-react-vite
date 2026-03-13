@@ -5,9 +5,9 @@
  */
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { db } from "../_lib/admin";
-import { withAuth } from "../_lib/auth";
-import { requireString } from "../_lib/validate";
+import { db } from "../_lib/admin.js";
+import { withAuth } from "../_lib/auth.js";
+import { requireString } from "../_lib/validate.js";
 
 const VALID_TYPES = ["task", "event", "both"] as const;
 

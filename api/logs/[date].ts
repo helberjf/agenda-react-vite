@@ -5,9 +5,9 @@
  */
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { db } from "../_lib/admin";
-import { withAuth } from "../_lib/auth";
-import { requireString, clean } from "../_lib/validate";
+import { db } from "../_lib/admin.js";
+import { withAuth } from "../_lib/auth.js";
+import { requireString, clean } from "../_lib/validate.js";
 
 const VALID_MOODS = ["great", "good", "neutral", "bad", "terrible"];
 

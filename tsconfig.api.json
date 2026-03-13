@@ -1,9 +1,12 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "module": "commonjs",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "outDir": ".vercel/output",
-    "noEmit": false
+    "noEmit": false,
+    "allowImportingTsExtensions": false
   },
-  "include": ["api/**/*"]
+  "include": ["api/**/*"],
+  "exclude": []
 }

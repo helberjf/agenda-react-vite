@@ -5,9 +5,9 @@
  */
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { db } from "../_lib/admin";
-import { withAuth } from "../_lib/auth";
-import { requireString, requireNumber, clean } from "../_lib/validate";
+import { db } from "../_lib/admin.js";
+import { withAuth } from "../_lib/auth.js";
+import { requireString, requireNumber, clean } from "../_lib/validate.js";
 
 export default withAuth(async (req: VercelRequest, res: VercelResponse, user) => {
   const { uid } = user;
