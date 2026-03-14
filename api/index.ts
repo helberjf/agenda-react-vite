@@ -6,15 +6,75 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import * as admin from "firebase-admin";
 
-function parseServiceAccount(raw: string) {
-  const trimmed = raw.trim();
-  const normalized =
-    (trimmed.startsWith("'") && trimmed.endsWith("'")) ||
-    (trimmed.startsWith("\"") && trimmed.endsWith("\""))
-      ? trimmed.slice(1, -1)
-      : trimmed;
+type RawServiceAccount = {
+  project_id?: string;
+  projectId?: string;
+  client_email?: string;
+  clientEmail?: string;
+  private_key?: string;
+  privateKey?: string;
+};
 
-  return JSON.parse(normalized);
+function toAppError(message: string): AppError {
+  return { status: 500, message };
+}
+
+function unwrapQuotedString(value: string) {
+  const trimmed = value.trim();
+  return (trimmed.startsWith("'") && trimmed.endsWith("'")) ||
+    (trimmed.startsWith("\"") && trimmed.endsWith("\""))
+    ? trimmed.slice(1, -1)
+    : trimmed;
+}
+
+function normalizeServiceAccount(value: unknown) {
+  if (!value || typeof value !== "object") {
+    throw toAppError("FIREBASE_SERVICE_ACCOUNT deve ser um objeto JSON valido.");
+  }
+
+  const raw = value as RawServiceAccount;
+  const projectId = raw.projectId ?? raw.project_id;
+  const clientEmail = raw.clientEmail ?? raw.client_email;
+  const privateKey = (raw.privateKey ?? raw.private_key)?.replace(/\\n/g, "\n");
+
+  if (!projectId) {
+    throw toAppError("FIREBASE_SERVICE_ACCOUNT sem project_id.");
+  }
+
+  if (!clientEmail) {
+    throw toAppError("FIREBASE_SERVICE_ACCOUNT sem client_email.");
+  }
+
+  if (!privateKey) {
+    throw toAppError("FIREBASE_SERVICE_ACCOUNT sem private_key.");
+  }
+
+  return { projectId, clientEmail, privateKey };
+}
+
+function parseServiceAccount(raw: string) {
+  let current: unknown = raw;
+
+  for (let index = 0; index < 3; index += 1) {
+    if (typeof current !== "string") {
+      return normalizeServiceAccount(current);
+    }
+
+    const candidate = unwrapQuotedString(current);
+
+    try {
+      current = JSON.parse(candidate);
+    } catch {
+      if (candidate.startsWith("{") && candidate.endsWith("}")) {
+        throw toAppError("FIREBASE_SERVICE_ACCOUNT nao e um JSON valido.");
+      }
+
+      current = candidate;
+      break;
+    }
+  }
+
+  return normalizeServiceAccount(current);
 }
 
 function ensureAdminInitialized() {
@@ -31,7 +91,12 @@ function ensureAdminInitialized() {
         credential: admin.credential.cert(parseServiceAccount(sa)),
         databaseURL: dbUrl,
       });
-    } catch {
+    } catch (error) {
+      const appError = error as AppError;
+      if (appError?.message) {
+        throw appError;
+      }
+
       throw { status: 500, message: "FIREBASE_SERVICE_ACCOUNT invalida no servidor." } as AppError;
     }
   }

@@ -6,15 +6,61 @@ import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 let admin, db, authAdmin;
 
-function parseServiceAccount(raw) {
-  const trimmed = raw.trim();
-  const normalized =
-    (trimmed.startsWith("'") && trimmed.endsWith("'")) ||
+function unwrapQuotedString(value) {
+  const trimmed = value.trim();
+  return (trimmed.startsWith("'") && trimmed.endsWith("'")) ||
     (trimmed.startsWith("\"") && trimmed.endsWith("\""))
-      ? trimmed.slice(1, -1)
-      : trimmed;
+    ? trimmed.slice(1, -1)
+    : trimmed;
+}
 
-  return JSON.parse(normalized);
+function normalizeServiceAccount(value) {
+  if (!value || typeof value !== "object") {
+    throw new Error("FIREBASE_SERVICE_ACCOUNT deve ser um objeto JSON valido.");
+  }
+
+  const projectId = value.projectId ?? value.project_id;
+  const clientEmail = value.clientEmail ?? value.client_email;
+  const privateKey = (value.privateKey ?? value.private_key)?.replace(/\\n/g, "\n");
+
+  if (!projectId) {
+    throw new Error("FIREBASE_SERVICE_ACCOUNT sem project_id.");
+  }
+
+  if (!clientEmail) {
+    throw new Error("FIREBASE_SERVICE_ACCOUNT sem client_email.");
+  }
+
+  if (!privateKey) {
+    throw new Error("FIREBASE_SERVICE_ACCOUNT sem private_key.");
+  }
+
+  return { projectId, clientEmail, privateKey };
+}
+
+function parseServiceAccount(raw) {
+  let current = raw;
+
+  for (let index = 0; index < 3; index += 1) {
+    if (typeof current !== "string") {
+      return normalizeServiceAccount(current);
+    }
+
+    const candidate = unwrapQuotedString(current);
+
+    try {
+      current = JSON.parse(candidate);
+    } catch {
+      if (candidate.startsWith("{") && candidate.endsWith("}")) {
+        throw new Error("FIREBASE_SERVICE_ACCOUNT nao e um JSON valido.");
+      }
+
+      current = candidate;
+      break;
+    }
+  }
+
+  return normalizeServiceAccount(current);
 }
 
 try {
