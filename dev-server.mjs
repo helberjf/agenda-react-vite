@@ -6,6 +6,17 @@ import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 let admin, db, authAdmin;
 
+function parseServiceAccount(raw) {
+  const trimmed = raw.trim();
+  const normalized =
+    (trimmed.startsWith("'") && trimmed.endsWith("'")) ||
+    (trimmed.startsWith("\"") && trimmed.endsWith("\""))
+      ? trimmed.slice(1, -1)
+      : trimmed;
+
+  return JSON.parse(normalized);
+}
+
 try {
   admin = require("firebase-admin");
   if (!admin.apps.length) {
@@ -15,7 +26,7 @@ try {
       console.error("Faltam FIREBASE_SERVICE_ACCOUNT e FIREBASE_DATABASE_URL em .env");
       process.exit(1);
     }
-    admin.initializeApp({ credential: admin.credential.cert(JSON.parse(sa)), databaseURL: dbUrl });
+    admin.initializeApp({ credential: admin.credential.cert(parseServiceAccount(sa)), databaseURL: dbUrl });
     console.log("Firebase Admin OK");
   }
   db = admin.database();

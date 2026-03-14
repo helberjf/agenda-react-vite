@@ -6,16 +6,45 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import * as admin from "firebase-admin";
 
-if (!admin.apps.length) {
-  const sa = process.env.FIREBASE_SERVICE_ACCOUNT;
-  const dbUrl = process.env.FIREBASE_DATABASE_URL;
-  if (sa && dbUrl) {
-    admin.initializeApp({ credential: admin.credential.cert(JSON.parse(sa)), databaseURL: dbUrl });
+function parseServiceAccount(raw: string) {
+  const trimmed = raw.trim();
+  const normalized =
+    (trimmed.startsWith("'") && trimmed.endsWith("'")) ||
+    (trimmed.startsWith("\"") && trimmed.endsWith("\""))
+      ? trimmed.slice(1, -1)
+      : trimmed;
+
+  return JSON.parse(normalized);
+}
+
+function ensureAdminInitialized() {
+  if (!admin.apps.length) {
+    const sa = process.env.FIREBASE_SERVICE_ACCOUNT;
+    const dbUrl = process.env.FIREBASE_DATABASE_URL;
+
+    if (!sa || !dbUrl) {
+      throw { status: 500, message: "Configuracao do Firebase ausente no servidor." } as AppError;
+    }
+
+    try {
+      admin.initializeApp({
+        credential: admin.credential.cert(parseServiceAccount(sa)),
+        databaseURL: dbUrl,
+      });
+    } catch {
+      throw { status: 500, message: "FIREBASE_SERVICE_ACCOUNT invalida no servidor." } as AppError;
+    }
   }
 }
 
-const db = () => admin.database();
-const authAdmin = () => admin.auth();
+const db = () => {
+  ensureAdminInitialized();
+  return admin.database();
+};
+const authAdmin = () => {
+  ensureAdminInitialized();
+  return admin.auth();
+};
 
 type AppError = { status: number; message: string };
 type User = { uid: string };

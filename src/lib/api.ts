@@ -3,7 +3,7 @@
  *
  * Cliente HTTP para as Vercel API Routes.
  * Injeta automaticamente o token Firebase no header Authorization.
- * O servidor verifica o token antes de executar qualquer operação.
+ * O servidor verifica o token antes de executar qualquer operacao.
  */
 
 import { auth } from "@/lib/firebase";
@@ -12,8 +12,32 @@ const BASE_URL = import.meta.env.VITE_API_URL ?? "";
 
 async function getToken(): Promise<string> {
   const user = auth.currentUser;
-  if (!user) throw new Error("Usuário não autenticado.");
+  if (!user) throw new Error("Usuario nao autenticado.");
   return user.getIdToken();
+}
+
+function parseApiResponse(text: string) {
+  if (!text) return null;
+
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return { raw: text } as const;
+  }
+}
+
+function extractApiError(data: unknown, status: number) {
+  if (data && typeof data === "object") {
+    if ("error" in data && typeof data.error === "string") {
+      return data.error;
+    }
+
+    if ("raw" in data && typeof data.raw === "string") {
+      return data.raw;
+    }
+  }
+
+  return `HTTP ${status}`;
 }
 
 async function request<T>(
@@ -26,10 +50,10 @@ async function request<T>(
 
   const url = new URL(`${BASE_URL}/api${path}`, window.location.origin);
   if (params) {
-    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+    Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, value));
   }
 
-  const res = await fetch(url.toString(), {
+  const response = await fetch(url.toString(), {
     method,
     headers: {
       "Content-Type": "application/json",
@@ -38,13 +62,14 @@ async function request<T>(
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
 
-  const data = await res.json();
+  const text = await response.text();
+  const data = parseApiResponse(text);
 
-  if (!res.ok) {
-    throw new Error(data.error ?? `HTTP ${res.status}`);
+  if (!response.ok) {
+    throw new Error(extractApiError(data, response.status));
   }
 
-  return data as T;
+  return (data ?? {}) as T;
 }
 
 export const api = {
