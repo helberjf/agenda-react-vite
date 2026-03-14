@@ -112,6 +112,29 @@ async function loadTasksByDate(uid, dateKey) {
   return taskSnaps.filter((taskSnap) => taskSnap.exists()).map((taskSnap) => taskSnap.val());
 }
 
+function ensureEventRange(startAt, endAt) {
+  if (endAt <= startAt) {
+    throw { status: 400, message: "O horario de fim deve ser posterior ao inicio." };
+  }
+}
+
+async function hasEventConflict(uid, startAt, endAt, excludeEventId) {
+  const snap = await db.ref(`events/${uid}`).get();
+  if (!snap.exists()) return false;
+
+  return Object.values(snap.val()).some((event) => {
+    if (excludeEventId && event.id === excludeEventId) {
+      return false;
+    }
+
+    if (typeof event.startAt !== "number" || typeof event.endAt !== "number") {
+      return false;
+    }
+
+    return event.startAt < endAt && event.endAt > startAt;
+  });
+}
+
 app.get("/api/tasks", auth(async (req, res, { uid }) => {
   const { date, startDate, endDate } = req.query;
 
@@ -246,6 +269,12 @@ app.post("/api/events", auth(async (req, res, { uid }) => {
   const title = str(body.title, "title", 200);
   const startAt = num(body.startAt, "startAt");
   const endAt = num(body.endAt, "endAt");
+  ensureEventRange(startAt, endAt);
+
+  if (await hasEventConflict(uid, startAt, endAt)) {
+    return res.status(409).json({ error: "Ja existe um agendamento nesse horario." });
+  }
+
   const eventRef = db.ref(`events/${uid}`).push();
   const eventId = eventRef.key;
   const now = Date.now();
@@ -272,7 +301,16 @@ app.patch("/api/events/:eventId", auth(async (req, res, { uid }) => {
   const snap = await db.ref(`events/${uid}/${req.params.eventId}`).get();
   if (!snap.exists()) return res.status(404).json({ error: "Evento nao encontrado." });
 
-  const updated = clean({ ...snap.val(), ...req.body, updatedAt: Date.now() });
+  const previous = snap.val();
+  const nextStartAt = req.body.startAt !== undefined ? num(req.body.startAt, "startAt") : previous.startAt;
+  const nextEndAt = req.body.endAt !== undefined ? num(req.body.endAt, "endAt") : previous.endAt;
+  ensureEventRange(nextStartAt, nextEndAt);
+
+  if (await hasEventConflict(uid, nextStartAt, nextEndAt, req.params.eventId)) {
+    return res.status(409).json({ error: "Ja existe um agendamento nesse horario." });
+  }
+
+  const updated = clean({ ...previous, ...req.body, startAt: nextStartAt, endAt: nextEndAt, updatedAt: Date.now() });
   await db.ref(`events/${uid}/${req.params.eventId}`).set(updated);
   res.json({ success: true });
 }));

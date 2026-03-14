@@ -60,19 +60,27 @@ export function NewEventModal() {
   }, [newEventOpen, newEventDefaultDate, reset]);
 
   async function onSubmit(data: EventFormValues) {
+    const startAt = fromInputDatetime(data.startAt);
+    const endAt = fromInputDatetime(data.endAt);
+
+    if (endAt <= startAt) {
+      toast.error("O horario de fim deve ser posterior ao inicio");
+      return;
+    }
+
     try {
       await createEvent.mutateAsync({
         title: data.title,
-        startAt: fromInputDatetime(data.startAt),
-        endAt: fromInputDatetime(data.endAt),
+        startAt,
+        endAt,
         description: data.description,
         location: data.location,
         allDay: data.allDay,
       });
       toast.success("Agendamento criado");
       closeNewEvent();
-    } catch {
-      toast.error("Erro ao criar agendamento");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao criar agendamento");
     }
   }
 
