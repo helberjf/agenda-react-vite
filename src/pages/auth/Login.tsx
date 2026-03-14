@@ -52,7 +52,7 @@ export function Login() {
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center">
           <h1 className="text-2xl font-semibold text-foreground">Agenda</h1>
-          <p className="text-sm text-muted-foreground mt-1">Produtividade sem fricção</p>
+          <p className="text-sm text-muted-foreground mt-1">Produtividade e controle em suas mãos</p>
         </div>
 
         <div className="bg-card border border-border rounded-xl p-6 space-y-4">
