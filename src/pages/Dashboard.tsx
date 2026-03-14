@@ -1,6 +1,7 @@
-import { Calendar, CalendarPlus, CheckCircle2, Circle, Pencil, TrendingUp, Plus } from "lucide-react";
+import { Calendar, CalendarPlus, CheckCircle2, Circle, Clock3, MapPin, Pencil, TrendingUp, Plus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useTodayTasks, useWeeklyTasks } from "@/hooks/useTasks";
+import { useEventsInRange } from "@/hooks/useEvents";
 import { useDailyLog } from "@/hooks/useDailyLog";
 import { useWeeklyGoals } from "@/hooks/useWeeklyGoals";
 import { useAuthStore } from "@/store/auth.store";
@@ -9,7 +10,7 @@ import { TaskCard } from "@/components/tasks/TaskCard";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { cn } from "@/lib/utils/cn";
-import { formatDateBR, formatWeekLabel, toWeekKey } from "@/lib/utils/date";
+import { endOfDayTs, format, formatDateBR, formatWeekLabel, startOfDayTs, toWeekKey } from "@/lib/utils/date";
 
 function StatCard({
   label,
@@ -40,6 +41,39 @@ function StatCard({
   );
 }
 
+function EventCard({
+  title,
+  timeLabel,
+  location,
+}: {
+  title: string;
+  timeLabel: string;
+  location?: string;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-card px-4 py-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-foreground">{title}</p>
+          <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1">
+              <Clock3 className="h-3 w-3" />
+              {timeLabel}
+            </span>
+            {location && (
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="h-3 w-3" />
+                {location}
+              </span>
+            )}
+          </div>
+        </div>
+        <Calendar className="h-4 w-4 shrink-0 text-primary" />
+      </div>
+    </div>
+  );
+}
+
 export function Dashboard() {
   const user = useAuthStore((s) => s.user);
   const { tasks: todayTasks, loading } = useTodayTasks();
@@ -49,9 +83,11 @@ export function Dashboard() {
   const { openQuickTask, openNewEvent } = useUIStore();
 
   const today = new Date();
+  const { events: todayEvents, loading: eventsLoading } = useEventsInRange(startOfDayTs(today), endOfDayTs(today));
   const firstName = user?.displayName?.split(" ")[0] ?? "voce";
   const todayDone = todayTasks.filter((task) => task.status === "done").length;
   const todayPending = todayTasks.filter((task) => task.status !== "done");
+  const sortedTodayEvents = [...todayEvents].sort((a, b) => a.startAt - b.startAt);
   const weekDone = weeklyTasks.filter((task) => task.status === "done").length;
   const weekTotal = weeklyTasks.length;
   const weekProgress = weekTotal > 0 ? Math.round((weekDone / weekTotal) * 100) : 0;
@@ -141,6 +177,45 @@ export function Dashboard() {
             {todayPending.length > 4 && (
               <Link to="/today" className="block text-center text-xs text-muted-foreground hover:text-primary py-2">
                 +{todayPending.length - 4} mais tarefa(s)
+              </Link>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Agendamentos de hoje</h2>
+          <Link to="/calendar" className="text-xs text-primary hover:underline">
+            Ver agenda â†’
+          </Link>
+        </div>
+
+        {eventsLoading ? (
+          <LoadingSpinner />
+        ) : sortedTodayEvents.length === 0 ? (
+          <EmptyState
+            title="Sem agendamentos"
+            description="Nenhum agendamento para hoje."
+            action={
+              <button onClick={() => openNewEvent()} className="text-xs text-primary hover:underline">
+                + Adicionar agendamento
+              </button>
+            }
+          />
+        ) : (
+          <div className="space-y-2">
+            {sortedTodayEvents.slice(0, 4).map((event) => (
+              <EventCard
+                key={event.id}
+                title={event.title}
+                timeLabel={event.allDay ? "Dia todo" : `${format(event.startAt, "HH:mm")} - ${format(event.endAt, "HH:mm")}`}
+                location={event.location}
+              />
+            ))}
+            {sortedTodayEvents.length > 4 && (
+              <Link to="/calendar" className="block text-center text-xs text-muted-foreground hover:text-primary py-2">
+                +{sortedTodayEvents.length - 4} mais agendamento(s)
               </Link>
             )}
           </div>
