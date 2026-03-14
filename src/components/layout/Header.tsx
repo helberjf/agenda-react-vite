@@ -1,37 +1,33 @@
-import { Menu, Plus, CalendarPlus } from "lucide-react";
-import { useUIStore } from "@/store/ui.store";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { Bell, Menu } from "lucide-react";
+import { useLocation } from "react-router-dom";
+
+const TITLES: Record<string, string> = {
+  "/": "Inicio",
+  "/dashboard": "Inicio",
+  "/today": "Hoje",
+  "/week": "Semana",
+  "/calendar": "Agenda",
+  "/history": "Historico",
+  "/journal": "Diario",
+  "/categories": "Categorias",
+  "/settings": "Configuracoes",
+};
 
 export function Header() {
-  const { toggleSidebar, openQuickTask, openNewEvent } = useUIStore();
-  const today = format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR });
+  const { pathname } = useLocation();
+  const title = TITLES[pathname] ?? "Agenda";
 
   return (
-    <header className="h-14 border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10 flex items-center px-4 gap-3">
-      <button
-        onClick={toggleSidebar}
-        className="lg:hidden p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <Menu className="h-5 w-5" />
-      </button>
-
-      <p className="text-sm text-muted-foreground capitalize hidden sm:block">{today}</p>
-
-      <div className="ml-auto flex items-center gap-2">
-        <button
-          onClick={openQuickTask}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-accent text-accent-foreground hover:bg-accent/80 transition-colors"
-        >
-          <Plus className="h-4 w-4" />
-          <span className="hidden sm:inline">Tarefa</span>
-        </button>
-        <button
-          onClick={() => openNewEvent()}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-        >
-          <CalendarPlus className="h-4 w-4" />
-          <span className="hidden sm:inline">Evento</span>
+    <header className="flex items-center justify-between px-4 md:px-6 py-3.5 border-b border-border bg-card/50 backdrop-blur-sm shrink-0">
+      <div className="flex items-center gap-3">
+        <div className="md:hidden h-5 w-5 text-muted-foreground">
+          <Menu className="h-5 w-5" />
+        </div>
+        <h1 className="text-sm font-semibold text-foreground">{title}</h1>
+      </div>
+      <div className="flex items-center gap-1">
+        <button className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground transition-colors">
+          <Bell className="h-4 w-4" />
         </button>
       </div>
     </header>

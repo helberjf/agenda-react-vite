@@ -64,13 +64,12 @@ Cole isso em **Firebase Console → Realtime Database → Regras**:
 ```json
 {
   "rules": {
-    "tasks":       { "$uid": { ".read": "auth != null && auth.uid === $uid", ".write": "auth != null && auth.uid === $uid" } },
-    "dailyTasks":  { "$uid": { ".read": "auth != null && auth.uid === $uid", ".write": "auth != null && auth.uid === $uid" } },
-    "weeklyTasks": { "$uid": { ".read": "auth != null && auth.uid === $uid", ".write": "auth != null && auth.uid === $uid" } },
-    "dailyLogs":   { "$uid": { ".read": "auth != null && auth.uid === $uid", ".write": "auth != null && auth.uid === $uid" } },
-    "events":      { "$uid": { ".read": "auth != null && auth.uid === $uid", ".write": "auth != null && auth.uid === $uid", ".indexOn": ["startAt"] } },
+    "tasks":       { "$uid": { ".read": "auth != null && auth.uid === $uid", ".write": false } },
+    "tasksByDate": { "$uid": { ".read": "auth != null && auth.uid === $uid", ".write": false } },
+    "dailyLogs":   { "$uid": { ".read": "auth != null && auth.uid === $uid", ".write": false } },
+    "events":      { "$uid": { ".read": "auth != null && auth.uid === $uid", ".write": false, ".indexOn": ["startAt"] } },
     "weeklyGoals": { "$uid": { ".read": "auth != null && auth.uid === $uid", ".write": "auth != null && auth.uid === $uid" } },
-    "categories":  { "$uid": { ".read": "auth != null && auth.uid === $uid", ".write": "auth != null && auth.uid === $uid" } },
+    "categories":  { "$uid": { ".read": "auth != null && auth.uid === $uid", ".write": false } },
     "users":       { "$uid": { ".read": "auth != null && auth.uid === $uid", ".write": "auth != null && auth.uid === $uid" } }
   }
 }

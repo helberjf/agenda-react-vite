@@ -63,8 +63,7 @@ src/
 
 ```
 tasks/{uid}/{taskId}              → task completa
-dailyTasks/{uid}/{yyyy-MM-dd}/{taskId} = true  → índice diário
-weeklyTasks/{uid}/{yyyy-Www}/{taskId} = true   → índice semanal
+tasksByDate/{uid}/{yyyy-MM-dd}/{taskId} = true → índice por dia
 dailyLogs/{uid}/{yyyy-MM-dd}      → log do dia (upsert)
 events/{uid}/{eventId}            → eventos de calendário
 weeklyGoals/{uid}/{yyyy-Www}/{goalId}
@@ -78,7 +77,7 @@ integrations/{uid}/calendar
 
 O Realtime Database não suporta queries compostas como SQL. Para buscar "tarefas do dia 2024-01-15", seria necessário varrer todos as tasks do usuário e filtrar por `date` — ineficiente.
 
-A solução é manter índices planos (`dailyTasks/{uid}/{dateKey}/{taskId} = true`) que permitem busca O(1) pelo caminho exato. A tarefa completa fica em `tasks/{uid}/{taskId}`.
+A solução é manter índices planos (`tasksByDate/{uid}/{dateKey}/{taskId} = true`) que permitem busca O(1) pelo caminho exato. A tarefa completa fica em `tasks/{uid}/{taskId}`.
 
 Custo: escrita dupla (task + índice). Benefício: leitura O(1) sem scan.
 

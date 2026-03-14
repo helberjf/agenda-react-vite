@@ -1,46 +1,27 @@
-/**
- * components/layout/AppLayout.tsx
- *
- * Layout raiz autenticado — sidebar + conteúdo.
- * Sidebar colapsa em mobile, fixa em desktop.
- */
-
 import { Outlet } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
-import { useUIStore } from "@/store/ui.store";
 import { QuickTaskModal } from "@/components/tasks/QuickTaskModal";
 import { NewEventModal } from "@/components/events/NewEventModal";
-import { cn } from "@/lib/utils/cn";
+import { BottomNav } from "./BottomNav";
 
 export function AppLayout() {
-  const { sidebarOpen } = useUIStore();
-
   return (
-    <div className="min-h-screen bg-background flex">
-      {/* Overlay mobile */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-20 bg-black/40 lg:hidden"
-          onClick={() => useUIStore.getState().closeSidebar()}
-        />
-      )}
-
+    <div className="flex h-screen bg-background overflow-hidden">
+      {/* Sidebar — só desktop */}
       <Sidebar />
 
-      <div
-        className={cn(
-          "flex-1 flex flex-col min-w-0 transition-all duration-200",
-          "lg:ml-60"
-        )}
-      >
+      {/* Main */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Header />
-        <main className="flex-1 p-4 md:p-6 animate-fade-in">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6">
           <Outlet />
         </main>
       </div>
 
-      {/* Modais globais */}
+      {/* Bottom nav — só mobile */}
+      <BottomNav />
+
       <QuickTaskModal />
       <NewEventModal />
     </div>

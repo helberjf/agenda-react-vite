@@ -1,173 +1,246 @@
-/**
- * pages/CalendarPage.tsx
- *
- * Calendário com FullCalendar.
- * Integra eventos do Firebase e suporta criação por clique no dia.
- */
-
-import { useState, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import listPlugin from "@fullcalendar/list";
-import type { EventClickArg, DateSelectArg, EventDropArg } from "@fullcalendar/core";
-import { useMonthEvents, useUpdateEvent, useDeleteEvent } from "@/hooks/useEvents";
+import ptBRLocale from "@fullcalendar/core/locales/pt-br";
+import { CalendarRange, ListTodo, Plus } from "lucide-react";
+import { useEventsInRange } from "@/hooks/useEvents";
+import { useTasksInRange } from "@/hooks/useTasks";
 import { useUIStore } from "@/store/ui.store";
-import { useAuthStore } from "@/store/auth.store";
-import { toast } from "sonner";
 import { cn } from "@/lib/utils/cn";
-import type { CalendarEvent } from "@/types";
+import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
+import { AgendaTypeFilter, type AgendaTypeFilterValue } from "@/components/shared/AgendaTypeFilter";
+import { EventCard } from "@/components/events/EventCard";
+import { TaskCard } from "@/components/tasks/TaskCard";
+import { endOfMonthTs, startOfMonthTs, toDateKey } from "@/lib/utils/date";
 
-// Mapeia CalendarEvent → formato FullCalendar
-function toFCEvent(event: CalendarEvent) {
-  return {
-    id: event.id,
-    title: event.title,
-    start: new Date(event.startAt),
-    end: new Date(event.endAt),
-    allDay: event.allDay ?? false,
-    extendedProps: { event },
-    color: "#3B82F6",
-  };
+const VIEWS = [
+  { key: "dayGridMonth", label: "Mes" },
+  { key: "timeGridWeek", label: "Semana" },
+  { key: "listWeek", label: "Lista" },
+];
+
+function EmptyAgendaSection({ label }: { label: string }) {
+  return (
+    <div className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-xs text-muted-foreground">
+      Nenhum {label.toLowerCase()} neste periodo.
+    </div>
+  );
 }
 
 export function CalendarPage() {
-  const calendarRef = useRef<FullCalendar>(null);
-  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
-  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
-
-  const { events, loading } = useMonthEvents(currentYear, currentMonth);
-  const updateEvent = useUpdateEvent();
-  const deleteEvent = useDeleteEvent();
+  const now = new Date();
+  const calRef = useRef<FullCalendar>(null);
   const { openNewEvent } = useUIStore();
+  const [activeView, setActiveView] = useState("dayGridMonth");
+  const [agendaFilter, setAgendaFilter] = useState<AgendaTypeFilterValue>("all");
+  const [visibleRange, setVisibleRange] = useState({
+    startTs: startOfMonthTs(now.getFullYear(), now.getMonth()),
+    endTs: endOfMonthTs(now.getFullYear(), now.getMonth()),
+    startDate: toDateKey(new Date(now.getFullYear(), now.getMonth(), 1)),
+    endDate: toDateKey(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
+  });
 
-  const fcEvents = events.map(toFCEvent);
+  const { events, loading: eventsLoading } = useEventsInRange(visibleRange.startTs, visibleRange.endTs);
+  const { data: tasks = [], isLoading: tasksLoading } = useTasksInRange(visibleRange.startDate, visibleRange.endDate);
+  const loading = eventsLoading || tasksLoading;
 
-  function handleDateSelect(info: DateSelectArg) {
-    openNewEvent(info.start.getTime());
-  }
+  const sortedEvents = useMemo(
+    () => [...events].sort((a, b) => a.startAt - b.startAt),
+    [events]
+  );
 
-  function handleEventClick(info: EventClickArg) {
-    const event = info.event.extendedProps.event as CalendarEvent;
-    setSelectedEvent(event);
-  }
+  const sortedTasks = useMemo(
+    () =>
+      [...tasks].sort((a, b) => {
+        const dateOrder = a.date.localeCompare(b.date);
+        if (dateOrder !== 0) return dateOrder;
+        return (a.deadline ?? "").localeCompare(b.deadline ?? "");
+      }),
+    [tasks]
+  );
 
-  async function handleEventDrop(info: EventDropArg) {
-    const event = info.event.extendedProps.event as CalendarEvent;
-    const duration = event.endAt - event.startAt;
-    const newStart = info.event.start!.getTime();
+  const visibleEvents = agendaFilter === "tasks" ? [] : sortedEvents;
+  const visibleTasks = agendaFilter === "events" ? [] : sortedTasks;
+  const agendaCounts = { all: tasks.length + events.length, tasks: tasks.length, events: events.length };
 
-    try {
-      await updateEvent.mutateAsync({
-        id: event.id,
-        input: { startAt: newStart, endAt: newStart + duration },
-      });
-    } catch {
-      info.revert();
-      toast.error("Erro ao mover evento");
-    }
-  }
+  const calendarItems = useMemo(
+    () => [
+      ...visibleEvents.map((event) => ({
+        id: `event-${event.id}`,
+        title: event.title,
+        start: new Date(event.startAt),
+        end: new Date(event.endAt),
+        allDay: event.allDay ?? false,
+        backgroundColor: "#10b981",
+        borderColor: "#10b981",
+        textColor: "#ffffff",
+      })),
+      ...visibleTasks.map((task) => ({
+        id: `task-${task.id}`,
+        title: task.status === "done" ? `Concluida: ${task.title}` : task.title,
+        start: task.date,
+        allDay: true,
+        backgroundColor: task.status === "done" ? "#94a3b8" : "#f59e0b",
+        borderColor: task.status === "done" ? "#94a3b8" : "#f59e0b",
+        textColor: "#111827",
+      })),
+    ],
+    [visibleEvents, visibleTasks]
+  );
 
-  async function handleDeleteSelected() {
-    if (!selectedEvent) return;
-    try {
-      await deleteEvent.mutateAsync(selectedEvent.id);
-      toast.success("Evento excluído");
-      setSelectedEvent(null);
-    } catch {
-      toast.error("Erro ao excluir evento");
-    }
+  function switchView(view: string) {
+    setActiveView(view);
+    calRef.current?.getApi().changeView(view);
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-foreground">Calendário</h1>
-      </div>
+    <div className="flex h-full flex-col gap-3">
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex gap-0.5 rounded-lg bg-secondary p-0.5">
+          {VIEWS.map((view) => (
+            <button
+              key={view.key}
+              onClick={() => switchView(view.key)}
+              className={cn(
+                "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                activeView === view.key
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {view.label}
+            </button>
+          ))}
+        </div>
 
-      <div className="bg-card border border-border rounded-xl overflow-hidden">
-        <div className="p-1">
-          <FullCalendar
-            ref={calendarRef}
-            plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
-            initialView="dayGridMonth"
-            locale="pt-br"
-            events={fcEvents}
-            selectable
-            editable
-            select={handleDateSelect}
-            eventClick={handleEventClick}
-            eventDrop={handleEventDrop}
-            datesSet={(info) => {
-              const mid = new Date((info.start.getTime() + info.end.getTime()) / 2);
-              setCurrentYear(mid.getFullYear());
-              setCurrentMonth(mid.getMonth());
-            }}
-            headerToolbar={{
-              left: "prev,next today",
-              center: "title",
-              right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek",
-            }}
-            buttonText={{
-              today: "Hoje",
-              month: "Mês",
-              week: "Semana",
-              day: "Dia",
-              list: "Lista",
-            }}
-            height="auto"
-            aspectRatio={1.8}
-            nowIndicator
-            dayMaxEvents={3}
-            eventTimeFormat={{ hour: "2-digit", minute: "2-digit", meridiem: false }}
-          />
+        <AgendaTypeFilter value={agendaFilter} onChange={setAgendaFilter} counts={agendaCounts} />
+
+        <button
+          onClick={() => openNewEvent()}
+          className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Novo agendamento
+        </button>
+
+        <div className="text-xs text-muted-foreground">
+          {tasks.length} tarefa(s) - {events.length} agendamento(s)
+        </div>
+
+        <div className="ml-auto flex gap-1">
+          <button
+            onClick={() => calRef.current?.getApi().prev()}
+            className="rounded-lg bg-secondary px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent"
+          >
+            {"<"}
+          </button>
+          <button
+            onClick={() => calRef.current?.getApi().today()}
+            className="rounded-lg bg-secondary px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent"
+          >
+            Hoje
+          </button>
+          <button
+            onClick={() => calRef.current?.getApi().next()}
+            className="rounded-lg bg-secondary px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent"
+          >
+            {">"}
+          </button>
         </div>
       </div>
 
-      {/* Painel de evento selecionado */}
-      {selectedEvent && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-full max-w-sm z-40 p-4 bg-card border border-border rounded-xl shadow-xl animate-fade-in">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-foreground truncate">{selectedEvent.title}</p>
-              {selectedEvent.description && (
-                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                  {selectedEvent.description}
-                </p>
-              )}
-              {selectedEvent.location && (
-                <p className="text-xs text-muted-foreground mt-0.5">📍 {selectedEvent.location}</p>
-              )}
-              <p className="text-xs text-muted-foreground mt-1">
-                {new Date(selectedEvent.startAt).toLocaleString("pt-BR", {
-                  day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
-                })}
-                {" → "}
-                {new Date(selectedEvent.endAt).toLocaleString("pt-BR", {
-                  day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
-                })}
-              </p>
-            </div>
-            <div className="flex gap-1">
-              <button
-                onClick={handleDeleteSelected}
-                disabled={deleteEvent.isPending}
-                className="px-3 py-1.5 text-xs rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
-              >
-                Excluir
-              </button>
-              <button
-                onClick={() => setSelectedEvent(null)}
-                className="px-3 py-1.5 text-xs rounded-lg hover:bg-accent text-muted-foreground"
-              >
-                Fechar
-              </button>
-            </div>
+      <div className="min-h-0 flex-1">
+        {loading ? (
+          <div className="flex h-full items-center justify-center">
+            <LoadingSpinner />
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="grid h-full min-h-0 gap-4 xl:grid-cols-[minmax(0,1fr),360px]">
+            <div className="calendar-wrapper min-h-[420px] rounded-2xl border border-border bg-card p-3 xl:min-h-0">
+              <FullCalendar
+                ref={calRef}
+                plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
+                initialView={activeView}
+                locale={ptBRLocale}
+                headerToolbar={false}
+                height="100%"
+                events={calendarItems}
+                nowIndicator
+                selectable
+                editable={false}
+                dayMaxEvents={3}
+                eventClassNames="cursor-pointer"
+                dateClick={(arg) => openNewEvent(arg.date.getTime())}
+                select={(arg) => openNewEvent(arg.start.getTime())}
+                datesSet={(arg) => {
+                  const inclusiveEnd = new Date(arg.end.getTime() - 1);
+                  setActiveView(arg.view.type);
+                  setVisibleRange({
+                    startTs: arg.start.getTime(),
+                    endTs: arg.end.getTime() - 1,
+                    startDate: toDateKey(arg.start),
+                    endDate: toDateKey(inclusiveEnd),
+                  });
+                }}
+              />
+            </div>
+
+            <aside className="min-h-0 rounded-2xl border border-border bg-card p-4 xl:overflow-y-auto">
+              <div className="mb-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Separado por tipo</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  As tarefas e os agendamentos do periodo visivel aparecem em blocos diferentes.
+                </p>
+              </div>
+
+              <div className="space-y-5">
+                {agendaFilter !== "tasks" && (
+                  <section className="space-y-2.5">
+                    <div className="flex items-center gap-2">
+                      <CalendarRange className="h-4 w-4 text-emerald-500" />
+                      <h2 className="text-sm font-semibold text-foreground">Agendamentos</h2>
+                      <span className="text-xs text-muted-foreground">({visibleEvents.length})</span>
+                    </div>
+
+                    {visibleEvents.length === 0 ? (
+                      <EmptyAgendaSection label="agendamento" />
+                    ) : (
+                      <div className="space-y-2">
+                        {visibleEvents.map((event) => (
+                          <EventCard key={event.id} event={event} showDate />
+                        ))}
+                      </div>
+                    )}
+                  </section>
+                )}
+
+                {agendaFilter !== "events" && (
+                  <section className="space-y-2.5">
+                    <div className="flex items-center gap-2">
+                      <ListTodo className="h-4 w-4 text-amber-500" />
+                      <h2 className="text-sm font-semibold text-foreground">Tarefas</h2>
+                      <span className="text-xs text-muted-foreground">({visibleTasks.length})</span>
+                    </div>
+
+                    {visibleTasks.length === 0 ? (
+                      <EmptyAgendaSection label="tarefa" />
+                    ) : (
+                      <div className="space-y-2">
+                        {visibleTasks.map((task) => (
+                          <TaskCard key={task.id} task={task} showDate />
+                        ))}
+                      </div>
+                    )}
+                  </section>
+                )}
+              </div>
+            </aside>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

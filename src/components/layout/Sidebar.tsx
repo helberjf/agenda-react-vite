@@ -1,118 +1,95 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
-  LayoutDashboard, Sun, CalendarDays, Calendar, History,
-  Settings, ChevronRight, Plus, LogOut, Tag,
+  BookOpen,
+  Calendar,
+  CalendarDays,
+  Clock,
+  History,
+  LayoutDashboard,
+  LogOut,
+  Plus,
+  Settings,
+  Tag,
 } from "lucide-react";
-import { mainNav, type NavItem } from "@/config/sidebar.config";
-import { useUIStore } from "@/store/ui.store";
+import { useAuthStore } from "@/store/auth.store";
 import { useAuth } from "@/hooks/useAuth";
+import { useUIStore } from "@/store/ui.store";
 import { cn } from "@/lib/utils/cn";
 
-const ICON_MAP: Record<string, React.FC<{ className?: string }>> = {
-  "layout-dashboard": LayoutDashboard,
-  "sun": Sun,
-  "calendar-days": CalendarDays,
-  "calendar": Calendar,
-  "history": History,
-  "settings": Settings,
-  "tag": Tag,
-};
-
-function NavItemLink({ item }: { item: Extract<NavItem, { type?: "item" }> }) {
-  const { closeSidebar } = useUIStore();
-  const Icon = ICON_MAP[item.icon] ?? ChevronRight;
-
-  return (
-    <NavLink
-      to={item.href}
-      end={item.href === "/"}
-      onClick={() => closeSidebar()}
-      className={({ isActive }) =>
-        cn(
-          "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-          "hover:bg-accent hover:text-accent-foreground",
-          isActive
-            ? "bg-primary text-primary-foreground"
-            : "text-muted-foreground"
-        )
-      }
-    >
-      <Icon className="h-4 w-4 shrink-0" />
-      <span className="truncate">{item.label}</span>
-      {item.badge && (
-        <span className="ml-auto text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">
-          {item.badge}
-        </span>
-      )}
-    </NavLink>
-  );
-}
+const NAV = [
+  { to: "/dashboard", icon: LayoutDashboard, label: "Inicio" },
+  { to: "/today", icon: Clock, label: "Hoje" },
+  { to: "/week", icon: CalendarDays, label: "Semana" },
+  { to: "/calendar", icon: Calendar, label: "Agenda" },
+  { to: "/journal", icon: BookOpen, label: "Diario" },
+  { to: "/history", icon: History, label: "Historico" },
+  { to: "/categories", icon: Tag, label: "Categorias" },
+  { to: "/settings", icon: Settings, label: "Config." },
+];
 
 export function Sidebar() {
-  const { sidebarOpen } = useUIStore();
+  const user = useAuthStore((s) => s.user);
+  const { logout } = useAuth();
   const { openQuickTask } = useUIStore();
-  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  async function handleSignOut() {
+    await logout();
+    navigate("/login");
+  }
 
   return (
-    <aside
-      className={cn(
-        "fixed inset-y-0 left-0 z-30 w-60 bg-card border-r border-border",
-        "flex flex-col transition-transform duration-200",
-        sidebarOpen ? "translate-x-0" : "-translate-x-full",
-        "lg:translate-x-0"
-      )}
-    >
-      {/* Logo */}
-      <div className="h-14 flex items-center px-4 border-b border-border shrink-0">
-        <span className="font-semibold text-foreground tracking-tight">Agenda</span>
+    <aside className="hidden md:flex w-56 shrink-0 flex-col border-r border-border bg-card h-screen">
+      <div className="px-4 py-5 border-b border-border">
+        <div className="flex items-center gap-2.5">
+          <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center">
+            <CalendarDays className="h-4 w-4 text-primary-foreground" />
+          </div>
+          <span className="font-semibold text-sm text-foreground tracking-tight">Agenda</span>
+        </div>
       </div>
 
-      {/* Ação rápida */}
-      <div className="px-3 pt-4">
+      <div className="px-3 py-3">
         <button
           onClick={openQuickTask}
-          className={cn(
-            "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium",
-            "bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-          )}
+          className="flex items-center gap-2 w-full px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
         >
           <Plus className="h-4 w-4" />
           Nova tarefa
         </button>
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {mainNav.map((item, i) => {
-          if (item.type === "divider") {
-            return <div key={i} className="my-2 border-t border-border" />;
-          }
-          if (item.type === "section") {
-            return (
-              <p key={i} className="px-3 pt-2 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {item.label}
-              </p>
-            );
-          }
-          return <NavItemLink key={item.href} item={item} />;
-        })}
+      <nav className="flex-1 px-2 space-y-0.5 overflow-y-auto">
+        {NAV.map(({ to, icon: Icon, label }) => (
+          <NavLink
+            key={to}
+            to={to}
+            className={({ isActive }) =>
+              cn(
+                "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors",
+                isActive ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+              )
+            }
+          >
+            <Icon className="h-4 w-4 shrink-0" />
+            {label}
+          </NavLink>
+        ))}
       </nav>
 
-      {/* User */}
       <div className="border-t border-border p-3">
-        <div className="flex items-center gap-3 px-2 py-1">
-          <div className="h-7 w-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-medium text-primary shrink-0">
-            {user?.displayName?.charAt(0).toUpperCase() ?? "U"}
+        <div className="flex items-center gap-2.5 px-2 py-1.5">
+          <div className="h-7 w-7 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+            <span className="text-xs font-semibold text-primary">
+              {user?.displayName?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? "?"}
+            </span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-foreground truncate">
-              {user?.displayName ?? "Usuário"}
-            </p>
-            <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+            <p className="text-xs font-medium text-foreground truncate">{user?.displayName ?? user?.email}</p>
           </div>
           <button
-            onClick={logout}
-            className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            onClick={handleSignOut}
+            className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
             title="Sair"
           >
             <LogOut className="h-3.5 w-3.5" />

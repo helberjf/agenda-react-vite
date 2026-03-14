@@ -1,42 +1,65 @@
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { X } from "lucide-react";
+import { format } from "date-fns";
+import { toast } from "sonner";
 import { useUIStore } from "@/store/ui.store";
 import { useCreateEvent } from "@/hooks/useEvents";
-import { createEventSchema, type CreateEventInput } from "@/lib/validators/event";
-import { toast } from "sonner";
-import { cn } from "@/lib/utils/cn";
-import { format } from "date-fns";
+
+type EventFormValues = {
+  title: string;
+  startAt: string;
+  endAt: string;
+  description?: string;
+  location?: string;
+  allDay: boolean;
+};
 
 function toInputDatetime(ts: number): string {
   return format(new Date(ts), "yyyy-MM-dd'T'HH:mm");
 }
 
-function fromInputDatetime(str: string): number {
-  return new Date(str).getTime();
+function fromInputDatetime(value: string): number {
+  return new Date(value).getTime();
 }
 
 export function NewEventModal() {
   const { newEventOpen, newEventDefaultDate, closeNewEvent } = useUIStore();
   const createEvent = useCreateEvent();
 
-  const defaultStart = newEventDefaultDate ?? Date.now();
-  const defaultEnd = defaultStart + 60 * 60 * 1000; // +1h
-
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<{ title: string; startAt: string; endAt: string; description?: string; location?: string; allDay: boolean }>({
+  } = useForm<EventFormValues>({
     defaultValues: {
-      startAt: toInputDatetime(defaultStart),
-      endAt: toInputDatetime(defaultEnd),
+      title: "",
+      startAt: toInputDatetime(Date.now()),
+      endAt: toInputDatetime(Date.now() + 60 * 60 * 1000),
+      description: "",
+      location: "",
       allDay: false,
     },
   });
 
-  async function onSubmit(data: { title: string; startAt: string; endAt: string; description?: string; location?: string; allDay: boolean }) {
+  useEffect(() => {
+    if (!newEventOpen) return;
+
+    const start = newEventDefaultDate ?? Date.now();
+    const end = start + 60 * 60 * 1000;
+
+    reset({
+      title: "",
+      startAt: toInputDatetime(start),
+      endAt: toInputDatetime(end),
+      description: "",
+      location: "",
+      allDay: false,
+    });
+  }, [newEventOpen, newEventDefaultDate, reset]);
+
+  async function onSubmit(data: EventFormValues) {
     try {
       await createEvent.mutateAsync({
         title: data.title,
@@ -46,11 +69,10 @@ export function NewEventModal() {
         location: data.location,
         allDay: data.allDay,
       });
-      toast.success("Evento criado");
-      reset();
+      toast.success("Agendamento criado");
       closeNewEvent();
     } catch {
-      toast.error("Erro ao criar evento");
+      toast.error("Erro ao criar agendamento");
     }
   }
 
@@ -62,7 +84,7 @@ export function NewEventModal() {
 
       <div className="relative w-full max-w-md bg-card border border-border rounded-xl shadow-xl">
         <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-border">
-          <h2 className="text-sm font-semibold text-foreground">Novo evento</h2>
+          <h2 className="text-sm font-semibold text-foreground">Novo agendamento</h2>
           <button onClick={closeNewEvent} className="p-1 rounded hover:bg-accent text-muted-foreground">
             <X className="h-4 w-4" />
           </button>
@@ -70,8 +92,8 @@ export function NewEventModal() {
 
         <form onSubmit={handleSubmit(onSubmit)} className="p-4 space-y-3">
           <input
-            {...register("title", { required: "Título obrigatório" })}
-            placeholder="Título do evento"
+            {...register("title", { required: "Titulo obrigatorio" })}
+            placeholder="Titulo do agendamento"
             className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
             autoFocus
           />
@@ -79,7 +101,7 @@ export function NewEventModal() {
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs text-muted-foreground">Início</label>
+              <label className="text-xs text-muted-foreground">Inicio</label>
               <input
                 type="datetime-local"
                 {...register("startAt")}
@@ -104,7 +126,7 @@ export function NewEventModal() {
 
           <textarea
             {...register("description")}
-            placeholder="Descrição (opcional)"
+            placeholder="Descricao (opcional)"
             rows={2}
             className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
           />
@@ -115,7 +137,11 @@ export function NewEventModal() {
           </label>
 
           <div className="flex justify-end gap-2 pt-1">
-            <button type="button" onClick={closeNewEvent} className="px-4 py-2 text-sm rounded-lg hover:bg-accent text-muted-foreground">
+            <button
+              type="button"
+              onClick={closeNewEvent}
+              className="px-4 py-2 text-sm rounded-lg hover:bg-accent text-muted-foreground"
+            >
               Cancelar
             </button>
             <button
@@ -123,7 +149,7 @@ export function NewEventModal() {
               disabled={createEvent.isPending}
               className="px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
-              {createEvent.isPending ? "Criando..." : "Criar evento"}
+              {createEvent.isPending ? "Criando..." : "Criar agendamento"}
             </button>
           </div>
         </form>
