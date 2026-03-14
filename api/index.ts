@@ -4,7 +4,9 @@
  */
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import * as admin from "firebase-admin";
+import { cert, getApps, initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+import { getDatabase } from "firebase-admin/database";
 
 type RawServiceAccount = {
   project_id?: string;
@@ -78,7 +80,7 @@ function parseServiceAccount(raw: string) {
 }
 
 function ensureAdminInitialized() {
-  if (!admin.apps.length) {
+  if (!getApps().length) {
     const sa = process.env.FIREBASE_SERVICE_ACCOUNT;
     const dbUrl = process.env.FIREBASE_DATABASE_URL;
 
@@ -87,8 +89,8 @@ function ensureAdminInitialized() {
     }
 
     try {
-      admin.initializeApp({
-        credential: admin.credential.cert(parseServiceAccount(sa)),
+      initializeApp({
+        credential: cert(parseServiceAccount(sa)),
         databaseURL: dbUrl,
       });
     } catch (error) {
@@ -104,11 +106,11 @@ function ensureAdminInitialized() {
 
 const db = () => {
   ensureAdminInitialized();
-  return admin.database();
+  return getDatabase();
 };
 const authAdmin = () => {
   ensureAdminInitialized();
-  return admin.auth();
+  return getAuth();
 };
 
 type AppError = { status: number; message: string };
