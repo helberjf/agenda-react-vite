@@ -1,5 +1,7 @@
 # Agenda — Full-Stack Productivity App
 
+[![CI](https://github.com/helberjf/agenda-react-vite/actions/workflows/ci.yml/badge.svg)](https://github.com/helberjf/agenda-react-vite/actions/workflows/ci.yml)
+
 A full-stack personal productivity app focused on daily execution. It brings tasks, scheduling, a journal, history and category organization into a single interface, with authentication, a protected API and a deploy-ready setup for Vercel.
 
 **Live demo:** https://agendapratica.vercel.app
