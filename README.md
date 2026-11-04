@@ -1,138 +1,69 @@
-# Agenda — Full-Stack Productivity App
+# Agenda — Personal Productivity App
 
 [![CI](https://github.com/helberjf/agenda-react-vite/actions/workflows/ci.yml/badge.svg)](https://github.com/helberjf/agenda-react-vite/actions/workflows/ci.yml)
 
-A full-stack personal productivity app focused on daily execution. It brings tasks, scheduling, a journal, history and category organization into a single interface, with authentication, a protected API and a deploy-ready setup for Vercel.
+A React and TypeScript application that brings daily tasks, calendar events, weekly goals and a journal into one workspace. Firebase provides authentication and persistence; a Node API handles the main task, event and journal operations.
 
-**Live demo:** https://agendapratica.vercel.app
+[Published application](https://agendapratica.vercel.app) · [Deployment guide](DEPLOY.md) · [Local setup guide, Portuguese](GUIA_LOCAL_E_DEPLOY.md)
 
-## Quick overview
+## Explore the workflow
 
-- **Type:** full-stack productivity application
-- **Scope:** authentication, data modeling, React frontend, Node API, Firebase integration and deploy
-- **Technical goal:** demonstrate building a real product, not just a basic CRUD
-- **Main stack:** React 19, TypeScript, Vite, Node.js, Firebase Auth, Realtime Database and Vercel
+1. Sign in with email/password or Google using a configured Firebase project.
+2. Create a category and a dated task in the Today view, then mark the task complete.
+3. Add an event and compare it in the weekly and FullCalendar views; export events as `.ics`.
+4. Write a daily log and revisit it through History or Journal.
 
-## For recruiters
+The interface also includes category filters and weekly goals. UI text is primarily Portuguese.
 
-This project is structured to demonstrate end-to-end engineering skills:
+## Architecture and source tour
 
-- Modern UI with React, protected routing and state management
-- Secure integration with Firebase Auth and Realtime Database
-- Authenticated API with token validation via `firebase-admin`
-- Performance-oriented modeling in Realtime Database, with a `tasksByDate` index
-- Code organized by domain: hooks, services, stores and utilities
-- Focus on real delivery: local environment, build, deploy and operational docs
+| Area | Entry point | Responsibility |
+| --- | --- | --- |
+| Pages and navigation | [src/pages](src/pages), [src/router](src/router) | Daily, weekly, calendar and journal screens |
+| Domain access | [src/services](src/services) | Tasks, events, logs, categories and weekly goals |
+| API client | [src/lib/api.ts](src/lib/api.ts) | Sends the Firebase ID token with requests |
+| Local API | [dev-server.mjs](dev-server.mjs) | Express API on port 3001 |
+| Hosted API | [api/index.ts](api/index.ts) | Vercel function handler |
+| Database policy | [database.rules.json](database.rules.json) | Per-user Realtime Database access rules |
 
-## What exists today
+The stack includes React 19, Vite 6, TypeScript, TanStack Query, Zustand, Tailwind, Radix UI, Firebase Auth and Realtime Database. Tasks, events and logs use the API. Category writes use the API while category subscriptions and weekly goals still use the Firebase client directly.
 
-- Authentication with Firebase Auth (email/password and Google)
-- Dashboard with a summary of the day and the week
-- "Today" view with tasks, schedules, filters and a daily log
-- Weekly view with progress and grouping by date
-- Calendar with FullCalendar (month, week and list modes)
-- Daily history to review past tasks and logs
-- Journal with day/month/list views
-- Create and edit categories for tasks and events
-- Export events to `.ics`
+## Run locally
 
-## Tech stack
-
-| Layer | Technologies |
-|---|---|
-| Frontend | React 19, Vite 6, TypeScript |
-| UI | Tailwind CSS, Radix UI, Lucide |
-| Async state | TanStack Query |
-| Local state | Zustand |
-| Forms | React Hook Form + Zod |
-| Calendar | FullCalendar |
-| Auth & DB | Firebase Auth + Realtime Database |
-| Backend | Node.js, Express, firebase-admin, Vercel Functions |
-
-## Architecture
-
-The project is no longer a 100% client-direct-to-Firebase model.
-
-- **Frontend:** React + Vite
-- **Auth:** Firebase Auth on the client
-- **Main DB:** Firebase Realtime Database
-- **Local API:** `dev-server.mjs` with Express on port 3001
-- **Production:** serverless routes in `api/index.ts`, deployed on Vercel
-
-Data flow: `tasks`, `events`, `dailyLogs` and category mutations go through the authenticated API (`/api/*`). The frontend sends the Firebase token in the `Authorization` header, and the API validates it with `firebase-admin` before touching the database. This keeps stricter Realtime Database rules for critical data while keeping a good real-time experience.
-
-## Project structure
-
-```
-src/
-  components/  # layout, tasks, events and shared UI
-  hooks/       # auth, tasks, events, categories, daily logs, weekly goals
-  lib/         # HTTP client, Firebase, validators and utilities
-  pages/       # Dashboard, Today, Week, Calendar, History, Journal, Settings, Auth
-  router/      # public and protected routes
-  services/    # API and Firebase access
-  store/       # Zustand stores
-  types/       # domain types
-api/
-  index.ts     # serverless handler used in production
-dev-server.mjs          # Express API used in local development
-database.rules.json     # Realtime Database rules
-vercel.json             # Vercel rewrites and build
-```
-
-## Getting started
+Use Node.js **20.x**, as declared in [package.json](package.json). Create a Firebase project, enable the intended sign-in providers and Realtime Database, and authorize the local application domain.
 
 ```bash
-# 1. install dependencies
+git clone https://github.com/helberjf/agenda-react-vite.git
+cd agenda-react-vite
 npm install
+```
 
-# 2. create env files (frontend reads .env/.env.local; the local API reads .env)
-cp .env.example .env
-cp .env.example .env.local
+Copy [`.env.example`](.env.example) to `.env`. Fill the `VITE_FIREBASE_*` web configuration and the server-only `FIREBASE_SERVICE_ACCOUNT` and `FIREBASE_DATABASE_URL` values. Keep service-account credentials out of variables prefixed with `VITE_`. The local API reads `.env`; Vite also reads `.env` and supports `.env.local` overrides.
 
-# 3. fill in the variables (Firebase web config + service account)
-# 4. publish the database rules
-npm install -g firebase-tools
-firebase login
-firebase deploy --only database
+Publish the checked-in database rules to your selected Firebase project, then start both processes:
 
-# 5. run the project (frontend on :5173, local API on :3001)
+```bash
+npx firebase-tools login
+npx firebase-tools deploy --only database --project YOUR_FIREBASE_PROJECT_ID
 npm run dev
 ```
 
-### Scripts
+The frontend runs at `http://localhost:5173`; the API runs on port 3001. `npm run dev:vite` and `npm run dev:api` start them separately.
 
-```
-npm run dev        # frontend + local API
-npm run dev:vite   # frontend only
-npm run dev:api    # local API only
-npm run build      # production build
-npm run lint       # lint src
-npm run type-check # type checking
+## Checks and deployment
+
+```bash
+npm run type-check
+npm run build
 ```
 
-## API routes
+The checked-in CI runs type checking and the build. No automated behavioral test suite is configured. A `lint` script exists, but this snapshot has no ESLint configuration, so it is not presented as a working validation gate.
 
-Protected routes live under `/api/*` and require a Firebase token: `/api/tasks`, `/api/events`, `/api/logs`, `/api/categories`. In production they are served by `api/index.ts`; in development, by `dev-server.mjs`.
+[vercel.json](vercel.json) routes `/api/*` to the hosted handler and serves the frontend build from `dist`. Configure the same environment values and Firebase authorized domain for the deployed site.
 
-## Data model (Realtime Database)
+## Design tradeoffs
 
-```
-tasks/{uid}/{taskId}
-tasksByDate/{uid}/{yyyy-MM-dd}/{taskId}
-events/{uid}/{eventId}
-dailyLogs/{uid}/{yyyy-MM-dd}
-weeklyGoals/{uid}/{yyyy-Www}/{goalId}
-categories/{uid}/{categoryId}
-users/{uid}/profile
-users/{uid}/settings
-```
-
-The `tasksByDate` index exists to avoid scanning all of a user's tasks when querying a specific day.
-
-## Deploy (Vercel)
-
-- The frontend is built to `dist`.
-- `vercel.json` rewrites `/api/:path*` to `api/index`.
-- Node version expected: 20.x.
-- Add all environment variables in the Vercel project, include the published domain in Firebase Auth → Authorized domains, and validate login, task creation, event creation and reads via `/api/*`.
+- **API mediation plus direct subscriptions:** server-side token verification centralizes important mutations, while Firebase subscriptions keep category updates simple. Both database rules and API authorization remain part of the access boundary.
+- **Denormalized date index:** `tasksByDate` avoids reading every task for a daily view; task creation, date changes and deletion must keep the index aligned with the primary task records.
+- **Two API entry points:** Express makes local development straightforward and Vercel functions fit the hosted setup, but changes must remain consistent across both handlers.
+- **Separate state tools:** TanStack Query manages remote data and Zustand manages local UI/auth state. This clarifies responsibilities at the cost of more than one state-management abstraction.
