@@ -1,7 +1,5 @@
 # Agenda — Personal Productivity App
 
-[![CI](https://github.com/helberjf/agenda-react-vite/actions/workflows/ci.yml/badge.svg)](https://github.com/helberjf/agenda-react-vite/actions/workflows/ci.yml)
-
 A React and TypeScript application that brings daily tasks, calendar events, weekly goals and a journal into one workspace. Firebase provides authentication and persistence; a Node API handles the main task, event and journal operations.
 
 [Published application](https://agendapratica.vercel.app) · [Deployment guide](DEPLOY.md) · [Local setup guide, Portuguese](GUIA_LOCAL_E_DEPLOY.md)
